@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generatore Automatica Tornei Briscola</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Schermata Iniziale e Iscrizioni (Accessibile) -->
+    <div id="schermata-iniziale" class="overlay-config" aria-modal="true" role="dialog" aria-labelledby="titolo-config">
+        <div class="box-config">
+            <h2 id="titolo-config">Nuovo Torneo di Briscola</h2>
+            
+            <!-- Fase 1: Scelta del numero di squadre -->
+            <div id="fase-scelta-squadre">
+                <p>Seleziona il numero di squadre partecipanti per generare il tabellone ad albero:</p>
+                <div class="bottoni-scelta">
+                    <button onclick="mostraFormIscrizione(16)">16 Squadre (Ottavi)</button>
+                    <button onclick="mostraFormIscrizione(8)">8 Squadre (Quarti)</button>
+                    <button onclick="mostraFormIscrizione(4)">4 Squadre (Semifinali)</button>
+                </div>
+                <button class="btn-reset-clear" onclick="cancellaTorneoEsistente()">Resetta Torneo Salvato</button>
+            </div>
+
+            <!-- Fase 2: Inserimento dei nomi reali (Nascosto all'inizio) -->
+            <div id="fase-inserimento-nomi" style="display: none;">
+                <p>Inserisci i nomi delle squadre e dei rispettivi compagni di gioco:</p>
+                <form id="form-squadre" onsubmit="confermaEIniziaTorneo(event)">
+                    <div id="lista-campi-squadre" class="elenco-iscrizioni-scroll">
+                        <!-- Generato dinamicamente da JavaScript -->
+                    </div>
+                    <button type="submit" class="btn-avvia-gioco">Genera Tabellone Ufficiale</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <h1 id="titolo-torneo">Torneo di Briscola 2026</h1>
+    </header>
+
+    <main>
+
+        <div style="text-align: center; margin-top: 40px; width: 100%;">
+            <button onclick="cancellaTorneoEsistente()" style="background-color: #ff4444; color: #000000; font-weight: bold; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                🗑️ Cancella e Inserisci Nuove Squadre
+            </button>
+        </div>
+
+        <button onclick="esportaTorneoInJSON()">Salva e Scarica JSON</button>
+
+        <label for="input-file-json" class="btn-carica">Carica Torneo da JSON</label>
+        <input type="file" id="input-file-json" accept=".json" style="display: none;">
+
+        <div class="tabellone-container" aria-label="Tabellone grafico del torneo">
+            <!-- Colonna Ottavi -->
+            <div class="colonna-fase" id="col-ottavi">
+                <h2>Ottavi</h2>
+                <div id="fase-ottavi" class="gruppo-partite"></div>
+            </div>
+
+            <!-- Colonna Quarti -->
+            <div class="colonna-fase" id="col-quarti">
+                <h2>Quarti</h2>
+                <div id="fase-quarti" class="gruppo-partite"></div>
+            </div>
+
+            <!-- Colonna Semifinali -->
+            <div class="colonna-fase" id="col-semifinali">
+                <h2>Semifinali</h2>
+                <div id="fase-semifinali" class="gruppo-partite"></div>
+            </div>
+
+            <!-- Colonna Finale -->
+            <div class="colonna-fase fase-centrale" id="col-finale">
+                <h2>Finale</h2>
+                <div id="fase-finale" class="gruppo-partite"></div>
+                <div id="zona-vincitore" class="blocco-vincitore"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
