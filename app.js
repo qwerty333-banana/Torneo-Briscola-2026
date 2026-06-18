@@ -16,14 +16,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('schermata-iniziale').style.display = 'flex';
     }
 
-    // Ascolta il caricamento del file JSON se l'elemento esiste nell'HTML
     const inputFile = document.getElementById('input-file-json');
     if (inputFile) {
         inputFile.addEventListener('change', importaTorneoDaJSON);
     }
 });
 
-// Mostra i campi di testo per inserire i nomi reali delle squadre
 function mostraFormIscrizione(numeroSquadre) {
     numeroSquadreScelte = numeroSquadre;
     document.getElementById('fase-scelta-squadre').style.display = 'none';
@@ -39,15 +37,14 @@ function mostraFormIscrizione(numeroSquadre) {
             <h3>Iscrizione Squadra ${i}</h3>
             <input type="text" id="nome-sq-${i}" placeholder="Nome della Squadra" required class="input-testo-config">
             <div class="coppia-giocatori-inputs">
-                <input type="text" id="g-a-${i}" placeholder="Giocatore 1 (Nome e Cognome)" required class="input-testo-config">
-                <input type="text" id="g-b-${i}" placeholder="Giocatore 2 (Nome e Cognome)" required class="input-testo-config">
+                <input type="text" id="g-a-${i}" placeholder="Giocatore 1" required class="input-testo-config">
+                <input type="text" id="g-b-${i}" placeholder="Giocatore 2" required class="input-testo-config">
             </div>
         `;
         contenitoreCampi.appendChild(divSquadra);
     }
 }
 
-// Raccoglie i dati inseriti e fa partire l'albero di gioco
 function confermaEIniziaTorneo(event) {
     event.preventDefault(); 
     archivioSquadre = [];
@@ -66,61 +63,89 @@ function confermaEIniziaTorneo(event) {
 
     tabelloneInCorso = {
         faseIniziale: numeroSquadreScelte,
+        sedicesimi: [],
         ottavi: [],
         quarti: [],
         semifinali: [],
         finale: []
     };
 
-    let indicePartita = 1;
-    if (numeroSquadreScelte === 16) {
-        for (let i = 0; i < 16; i += 2) {
-            tabelloneInCorso.ottavi.push({ partita: indicePartita++, squadra1: archivioSquadre[i].id_squadra, squadra2: archivioSquadre[i+1].id_squadra, punti1: null, punti2: null });
+    for (let i = 1; i <= 16; i++) tabelloneInCorso.sedicesimi.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    for (let i = 1; i <= 8; i++) tabelloneInCorso.ottavi.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    for (let i = 1; i <= 4; i++) tabelloneInCorso.quarti.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    for (let i = 1; i <= 2; i++) tabelloneInCorso.semifinali.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    tabelloneInCorso.finale.push({ partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null });
+
+    if (numeroSquadreScelte === 32) {
+        for (let i = 0; i < 32; i += 2) {
+            let p = tabelloneInCorso.sedicesimi[Math.floor(i / 2)];
+            p.squadra1 = archivioSquadre[i].id_squadra;
+            p.squadra2 = archivioSquadre[i+1].id_squadra;
         }
-        for (let i = 1; i <= 4; i++) tabelloneInCorso.quarti.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-        for (let i = 1; i <= 2; i++) tabelloneInCorso.semifinali.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-        tabelloneInCorso.finale.push({ partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    } 
+    else if (numeroSquadreScelte === 16) {
+        for (let i = 0; i < 16; i += 2) {
+            let p = tabelloneInCorso.ottavi[Math.floor(i / 2)];
+            p.squadra1 = archivioSquadre[i].id_squadra;
+            p.squadra2 = archivioSquadre[i+1].id_squadra;
+        }
     } 
     else if (numeroSquadreScelte === 8) {
         for (let i = 0; i < 8; i += 2) {
-            tabelloneInCorso.quarti.push({ partita: indicePartita++, squadra1: archivioSquadre[i].id_squadra, squadra2: archivioSquadre[i+1].id_squadra, punti1: null, punti2: null });
+            let p = tabelloneInCorso.quarti[Math.floor(i / 2)];
+            p.squadra1 = archivioSquadre[i].id_squadra;
+            p.squadra2 = archivioSquadre[i+1].id_squadra;
         }
-        for (let i = 1; i <= 2; i++) tabelloneInCorso.semifinali.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-        tabelloneInCorso.finale.push({ partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null });
     } 
     else if (numeroSquadreScelte === 4) {
         for (let i = 0; i < 4; i += 2) {
-            tabelloneInCorso.semifinali.push({ partita: indicePartita++, squadra1: archivioSquadre[i].id_squadra, squadra2: archivioSquadre[i+1].id_squadra, punti1: null, punti2: null });
+            let p = tabelloneInCorso.semifinali[Math.floor(i / 2)];
+            p.squadra1 = archivioSquadre[i].id_squadra;
+            p.squadra2 = archivioSquadre[i+1].id_squadra;
         }
-        tabelloneInCorso.finale.push({ partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null });
     }
 
     salvaDatiSuBrowser();
-    
     document.getElementById('schermata-iniziale').style.display = 'none';
     gestisciVisibilitaColonne(numeroSquadreScelte);
     costruisciTabelloneGrafico();
 }
 
 function gestisciVisibilitaColonne(numeroSquadre) {
-    document.getElementById('col-ottavi').style.display = numeroSquadre === 16 ? 'flex' : 'none';
-    document.getElementById('col-quarti').style.display = numeroSquadre >= 8 ? 'flex' : 'none';
-    document.getElementById('col-semifinali').style.display = numeroSquadre >= 4 ? 'flex' : 'none';
+    document.getElementById('col-sedicesimi-sx').style.display = numeroSquadre === 32 ? 'flex' : 'none';
+    document.getElementById('col-sedicesimi-dx').style.display = numeroSquadre === 32 ? 'flex' : 'none';
+    document.getElementById('col-ottavi-sx').style.display = numeroSquadre >= 16 ? 'flex' : 'none';
+    document.getElementById('col-ottavi-dx').style.display = numeroSquadre >= 16 ? 'flex' : 'none';
+    document.getElementById('col-quarti-sx').style.display = numeroSquadre >= 8 ? 'flex' : 'none';
+    document.getElementById('col-quarti-dx').style.display = numeroSquadre >= 8 ? 'flex' : 'none';
+    document.getElementById('col-semifinali-sx').style.display = numeroSquadre >= 4 ? 'flex' : 'none';
+    document.getElementById('col-semifinali-dx').style.display = numeroSquadre >= 4 ? 'flex' : 'none';
 }
 
 function costruisciTabelloneGrafico() {
     const mappaSquadre = new Map(archivioSquadre.map(s => [s.id_squadra, s]));
 
-    if (tabelloneInCorso.faseIniziale === 16) renderizzaFaseHtml('ottavi', tabelloneInCorso.ottavi, mappaSquadre);
-    if (tabelloneInCorso.faseIniziale >= 8) renderizzaFaseHtml('quarti', tabelloneInCorso.quarti, mappaSquadre);
-    if (tabelloneInCorso.faseIniziale >= 4) renderizzaFaseHtml('semifinali', tabelloneInCorso.semifinali, mappaSquadre);
-    renderizzaFaseHtml('finale', tabelloneInCorso.finale, mappaSquadre);
+    const distribuisciFase = (nomeFase, partiteTotali) => {
+        const meta = partiteTotali.length / 2;
+        const sottomatchSx = partiteTotali.slice(0, meta);
+        const sottomatchDx = partiteTotali.slice(meta);
+        
+        renderizzaFaseHtml(`fase-${nomeFase}-sx`, sottomatchSx, mappaSquadre, nomeFase, false);
+        renderizzaFaseHtml(`fase-${nomeFase}-dx`, sottomatchDx, mappaSquadre, nomeFase, true);
+    };
+
+    if (tabelloneInCorso.faseIniziale === 32) distribuisciFase('sedicesimi', tabelloneInCorso.sedicesimi);
+    if (tabelloneInCorso.faseIniziale >= 16) distribuisciFase('ottavi', tabelloneInCorso.ottavi);
+    if (tabelloneInCorso.faseIniziale >= 8) distribuisciFase('quarti', tabelloneInCorso.quarti);
+    if (tabelloneInCorso.faseIniziale >= 4) distribuisciFase('semifinali', tabelloneInCorso.semifinali);
+    
+    renderizzaFaseHtml('fase-finale-centro', tabelloneInCorso.finale, mappaSquadre, 'finale', false);
 
     aggiornaCampioneGrafico(mappaSquadre);
 }
 
-function renderizzaFaseHtml(nomeFase, partite, mappaSquadre) {
-    const contenitore = document.getElementById(`fase-${nomeFase}`);
+function renderizzaFaseHtml(idContenitore, partite, mappaSquadre, nomeFaseOriginale, specchiato) {
+    const contenitore = document.getElementById(idContenitore);
     if (!contenitore) return;
     contenitore.innerHTML = "";
 
@@ -129,16 +154,16 @@ function renderizzaFaseHtml(nomeFase, partite, mappaSquadre) {
         const sq2 = mappaSquadre.get(p.squadra2) || { nome_squadra: "Da Definire", giocatori: "" };
         
         const blocco = document.createElement('div');
-        blocco.className = "blocco-partita-grafica";
+        blocco.className = `blocco-partita-grafica ${specchiato ? 'partita-specchiata' : ''}`;
         blocco.innerHTML = `
             <div class="etichetta-match">Match ${p.partita}</div>
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti1 > p.punti2 ? 'vincitore' : ''}">
                 <span class="team-nome" title="${sq1.giocatori}">${sq1.nome_squadra}</span>
-                <input type="number" class="input-punti" value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFase}', ${p.partita}, 1, this.value)">
+                <input type="number" class="input-punti" value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFaseOriginale}', ${p.partita}, 1, this.value)">
             </div>
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti2 > p.punti1 ? 'vincitore' : ''}">
                 <span class="team-nome" title="${sq2.giocatori}">${sq2.nome_squadra}</span>
-                <input type="number" class="input-punti" value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFase}', ${p.partita}, 2, this.value)">
+                <input type="number" class="input-punti" value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFaseOriginale}', ${p.partita}, 2, this.value)">
             </div>
         `;
         contenitore.appendChild(blocco);
@@ -166,14 +191,14 @@ function aggiornaPunteggioIncontro(fase, numeroPartita, numeroSquadra, valore) {
     }
 
     applicaProgressioneOReset(fase, numeroPartita, idVincente);
-
     salvaDatiSuBrowser();
     costruisciTabelloneGrafico();
 }
 
 function applicaProgressioneOReset(faseAttuale, numeroPartita, idVincente) {
     let faseSuccessiva = null;
-    if (faseAttuale === 'ottavi') faseSuccessiva = 'quarti';
+    if (faseAttuale === 'sedicesimi') faseSuccessiva = 'ottavi';
+    else if (faseAttuale === 'ottavi') faseSuccessiva = 'quarti';
     else if (faseAttuale === 'quarti') faseSuccessiva = 'semifinali';
     else if (faseAttuale === 'semifinali') faseSuccessiva = 'finale';
 
@@ -181,36 +206,100 @@ function applicaProgressioneOReset(faseAttuale, numeroPartita, idVincente) {
         const prossimoIncontroIndice = Math.floor((numeroPartita - 1) / 2);
         const slotSquadra = (numeroPartita - 1) % 2 === 0 ? 'squadra1' : 'squadra2';
         
-        const vecchioInviato = tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice][slotSquadra];
+        const prossimoIncontro = tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice];
+        if (!prossimoIncontro) return;
+
+        const vecchioInviato = prossimoIncontro[slotSquadra];
         
         if (idVincente === null) {
-            tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice][slotSquadra] = null;
+            prossimoIncontro[slotSquadra] = null;
             if (vecchioInviato !== null) {
-                tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice].punti1 = null;
-                tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice].punti2 = null;
+                prossimoIncontro.punti1 = null;
+                prossimoIncontro.punti2 = null;
                 applicaProgressioneOReset(faseSuccessiva, prossimoIncontroIndice + 1, null);
             }
         } else {
-            tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice][slotSquadra] = idVincente;
+            prossimoIncontro[slotSquadra] = idVincente;
         }
     }
 }
 
+let coriandoliGiaLanciati = false;
+
 function aggiornaCampioneGrafico(mappaSquadre) {
     const f = tabelloneInCorso.finale;
     const container = document.getElementById('zona-vincitore');
+    const modale = document.getElementById('modale-vincitore');
+    const nomeSquadraCampione = document.getElementById('nome-squadra-campione');
+    
     if (!container) return;
-    container.innerHTML = "";
 
     if (f && f[0] && (f[0].punti1 === 4 || f[0].punti2 === 4)) {
         const idVincente = f[0].punti1 === 4 ? f[0].squadra1 : f[0].squadra2;
         const vincitore = mappaSquadre.get(idVincente);
+        
         if (vincitore) {
+            // Aggiorna il testo e la visualizzazione del box inferiore elastico
             container.innerHTML = `
-                <div class="🏆">🏆 CAMPIONI 🏆</div>
+                <div style="font-size: 0.9rem; color: #aaa;">🏆 CAMPIONI 🏆</div>
                 <div class="nome-campione">${vincitore.nome_squadra}</div>
             `;
+            container.classList.add('attivo');
+
+            // Imposta il nome della squadra nella finestra centrale pop-up
+            if (nomeSquadraCampione) {
+                nomeSquadraCampione.textContent = vincitore.nome_squadra;
+            }
+            
+            // Lancia i coriandoli ed apre la modale solo al momento della proclamazione vera e propria
+            if (!coriandoliGiaLanciati) {
+                coriandoliGiaLanciati = true; 
+                
+                if (modale) {
+                    modale.classList.add('mostra');
+                }
+
+                // --- EFFETTO CELEBRAZIONE AD ESPLOSIONI MULTIPLE ---
+                var durata = 3 * 1000; // 3 secondi
+                var fine = Date.now() + durata;
+
+                (function fotogramma() {
+                    // Esplosione da sinistra
+                    confetti({
+                        particleCount: 4,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0, y: 0.7 }
+                    });
+                    // Esplosione da destra
+                    confetti({
+                        particleCount: 4,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1, y: 0.7 }
+                    });
+
+                    if (Date.now() < fine) {
+                        requestAnimationFrame(fotogramma);
+                    }
+                }());
+            }
         }
+    } else {
+        // Se il punteggio viene rimosso, resetta lo stato ed elimina le classi attive
+        container.innerHTML = "";
+        container.classList.remove('attivo');
+        if (modale) {
+            modale.classList.remove('mostra');
+        }
+        coriandoliGiaLanciati = false;
+    }
+}
+
+function chiudiModaleVittoria() {
+    const modale = document.getElementById('modale-vincitore');
+    if (modale) {
+        modale.classList.remove('mostra');
     }
 }
 
@@ -224,42 +313,31 @@ function cancellaTorneoEsistente() {
     location.reload();
 }
 
-
-/* ========================================================
-   NUOVE FUNZIONI: SALVATAGGIO E CARICAMENTO FILE .JSON
-   ======================================================== */
-
-// 1. Funzione per SCARICARE il torneo attuale in un file JSON fisco
 function esportaTorneoInJSON() {
     if (!tabelloneInCorso.faseIniziale) {
         alert("Nessun torneo attivo da esportare!");
         return;
     }
 
-    // Uniamo i dati in un unico oggetto globale
     const datiDatiTorneo = {
         archivioSquadre: archivioSquadre,
         tabelloneInCorso: tabelloneInCorso
     };
 
-    // Creiamo il file JSON virtuale
     const stringaJson = JSON.stringify(datiDatiTorneo, null, 2);
     const blob = new Blob([stringaJson], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
-    // Generiamo un link invisibile e lo clicchiamo via codice per scaricare il file
     const linkDownload = document.createElement("a");
     linkDownload.href = url;
     linkDownload.download = `torneo_briscola_${tabelloneInCorso.faseIniziale}_squadre.json`;
     document.body.appendChild(linkDownload);
     linkDownload.click();
     
-    // Pulizia memoria
     document.body.removeChild(linkDownload);
     URL.revokeObjectURL(url);
 }
 
-// 2. Funzione per CARICARE il file JSON precedentemente scaricato
 function importaTorneoDaJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -269,15 +347,12 @@ function importaTorneoDaJSON(event) {
         try {
             const datiImportati = JSON.parse(e.target.result);
 
-            // Controllo validità minimale del file
             if (datiImportati.archivioSquadre && datiImportati.tabelloneInCorso) {
                 archivioSquadre = datiImportati.archivioSquadre;
                 tabelloneInCorso = datiImportati.tabelloneInCorso;
 
-                // Sincronizziamo anche il localStorage (così al refresh resta salvato)
                 salvaDatiSuBrowser();
 
-                // Nascondiamo la schermata iniziale e carichiamo la grafica
                 document.getElementById('schermata-iniziale').style.display = 'none';
                 gestisciVisibilitaColonne(tabelloneInCorso.faseIniziale);
                 costruisciTabelloneGrafico();

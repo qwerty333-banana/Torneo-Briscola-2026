@@ -21,7 +21,9 @@ header h1 {
     color: var(--colore-accento);
 }
 
-/* Modale Overlay Iscrizioni */
+/* ==========================================
+   MODALE OVERLAY ISCRIZIONI
+   ========================================== */
 .overlay-config {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -129,15 +131,40 @@ header h1 {
     cursor: pointer;
 }
 
-/* Struttura Albero */
+/* ==========================================
+   STRUTTURA STRUTTURALE DEL TABELLONE
+   ========================================== */
 .tabellone-container {
     display: flex;
-    justify-content: space-between;
-    align-items: stretch;
-    max-width: 1400px;
+    justify-content: center;
+    align-items: flex-start; /* Fissa tutte le colonne allineate in alto */
+    max-width: 100%;
     margin: 0 auto;
-    gap: 20px;
+    gap: 15px;
     overflow-x: auto;
+    padding: 10px;
+}
+
+.ala-tabellone {
+    display: flex;
+    gap: 15px;
+    flex: 2;
+}
+
+.ala-sinistra {
+    flex-direction: row;
+}
+
+.ala-destra {
+    flex-direction: row;
+}
+
+.centro-tabellone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 260px;
 }
 
 .colonna-fase {
@@ -145,34 +172,61 @@ header h1 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 240px;
+    min-width: 200px;
 }
 
-.colonna-fase h2 {
-    font-size: 1.1rem;
+/* Gestione specifica per la colonna della Finale */
+.fase-centrale {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 270px;
+}
+
+/* UNIFORMITÀ TITOLI H2 (Tutti allineati alla stessa identica altezza) */
+.colonna-fase h2, .fase-centrale h2 {
+    font-size: 1rem;
     color: var(--colore-accento);
     text-transform: uppercase;
     width: 100%;
     text-align: center;
     border-bottom: 2px solid var(--colore-bordo);
     padding-bottom: 5px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    height: 25px; /* Blocca l'altezza dei titoli */
+    box-sizing: border-box;
 }
 
+/* DISTRIBUZIONE VERTICALE DELLE PARTITE */
 .gruppo-partite {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
     flex-grow: 1;
     width: 100%;
-    gap: 20px;
+    gap: 15px;
+    min-height: 520px; /* Garantisce l'altezza ad albero proporzionata */
 }
 
+/* La finale non ha più il margin-top invasivo, usa l'altezza del gruppo per centrarsi */
+.fase-centrale .gruppo-partite {
+    justify-content: center;
+    flex-grow: 0;
+}
+
+/* ==========================================
+   ELEMENTI GRAFICI DEI MATCH
+   ========================================== */
 .blocco-partita-grafica {
     background-color: var(--colore-superficie);
     border: 1px solid var(--colore-bordo);
     border-radius: 8px;
     padding: 12px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .etichetta-match {
@@ -201,7 +255,7 @@ header h1 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
+    max-width: 140px;
 }
 
 .input-punti {
@@ -219,12 +273,48 @@ header h1 {
     border-color: var(--colore-accento);
 }
 
+/* REGOLE SPECIFICHE PER SPECCHIARE I MATCH A DESTRA */
+.partita-specchiata .team-riga {
+    flex-direction: row-reverse;
+    border-left: none;
+    border-right: 3px solid transparent;
+}
+
+.partita-specchiata .team-riga.vincitore {
+    border-right-color: var(--colore-accento);
+}
+
+.partita-specchiata .etichetta-match {
+    text-align: right;
+}
+
+/* ==========================================
+   BLOCCO VINCITORE (Espansione verso il basso)
+   ========================================== */
 .blocco-vincitore {
-    margin-top: 30px;
     text-align: center;
-    padding: 20px;
-    border: 2px dashed var(--colore-accento);
+    border: 2px dashed transparent;
     border-radius: 8px;
+    background-color: transparent;
+    width: 100%;
+    box-sizing: border-box;
+    
+    /* Animazione fluida controllata verso il basso */
+    max-height: 0;
+    padding: 0 15px;
+    margin-top: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.5s ease-out, padding 0.3s ease, margin 0.3s ease, opacity 0.3s ease;
+}
+
+/* Si srotola verso il basso quando viene aggiunta la classe .attivo */
+.blocco-vincitore.attivo {
+    margin-top: 20px;
+    padding: 15px;
+    max-height: 120px;
+    opacity: 1;
+    border-color: var(--colore-accento);
     background-color: rgba(0, 255, 204, 0.05);
 }
 
@@ -232,4 +322,134 @@ header h1 {
     font-size: 1.5rem;
     font-weight: bold;
     color: var(--colore-accento);
+    margin-top: 5px;
+}
+
+/* ==========================================
+   BARRA DELLE AZIONI CONTROLLI
+   ========================================== */
+.barra-azioni {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 20px auto 40px auto;
+    width: 100%;
+    max-width: 1400px;
+}
+
+.btn-azione {
+    background-color: var(--colore-superficie);
+    color: var(--colore-testo);
+    border: 1px solid var(--colore-bordo);
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.btn-azione:hover {
+    border-color: var(--colore-accento);
+    background-color: rgba(0, 255, 204, 0.1);
+}
+
+.btn-azione.btn-danger {
+    background-color: #ff4444;
+    color: #000000;
+    border: none;
+}
+
+.btn-azione.btn-danger:hover {
+    background-color: #ff2222;
+}
+
+/* ==========================================
+   FINESTRA CENTRALE CELEBRATIVA VINCITORE
+   ========================================== */
+.overlay-vittoria {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px); /* Sfoca leggermente il tabellone dietro */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+/* Quando viene mostrata */
+.overlay-vittoria.mostra {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.box-vittoria {
+    background-color: var(--colore-superficie);
+    padding: 40px;
+    border-radius: 16px;
+    border: 3px solid var(--colore-accento);
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
+    max-width: 500px;
+    width: 90%;
+    transform: scale(0.7);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.overlay-vittoria.mostra .box-vittoria {
+    transform: scale(1);
+}
+
+.trofeo-animato {
+    font-size: 4.5rem;
+    margin-bottom: 10px;
+    animation: battitoTrofeo 1.5s infinite alternate;
+}
+
+.box-vittoria h2 {
+    color: #ffffff;
+    font-size: 2rem;
+    margin: 10px 0;
+}
+
+.messaggio-vittoria {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--colore-accento);
+    margin: 15px 0 5px 0;
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+}
+
+.sub-text-vittoria {
+    font-size: 1.2rem;
+    color: #cccccc;
+    margin-bottom: 25px;
+}
+
+.btn-chiudi-vittoria {
+    background-color: var(--colore-accento);
+    color: #000000;
+    font-weight: bold;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.2s;
+}
+
+.btn-chiudi-vittoria:hover {
+    transform: scale(1.05);
+}
+
+@keyframes battitoTrofeo {
+    from { transform: scale(1); }
+    to { transform: scale(1.15); }
 }
