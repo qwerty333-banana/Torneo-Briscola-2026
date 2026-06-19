@@ -4,12 +4,12 @@ const numeroSquadreScelte = 8;
 let idTorneoCloud = null;
 let modoSolaLettura = false;
 
-const BUCKET_URL = "https://kvdb.io/7097e224e5ffcf7ddcce/"; // Database Cloud condiviso gratuito
+const BUCKET_URL = "https://api.npoint.io/7097e224e5ffcf7ddcce"; // Database Cloud condiviso gratuito
 
 
 async function verificaAdmin() {
     const psw = prompt("Inserisci Password Admin:");
-    if (psw === "tuaPasswordSegreta") {
+    if (psw === "PdorFiglioDiKmer") {
         localStorage.setItem('admin_token', 'valido');
         location.reload();
     }
@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('schermata-iniziale').style.display = 'none';
         
         await caricaDatiDalCloud();
-        setInterval(caricaDatiDalCloud, 25000); // Aggiorna da solo lo schermo degli spettatori ogni 25 secondi
+        setInterval(caricaDatiDalCloud, 5000); // Aggiorna da solo lo schermo degli spettatori ogni 25 secondi
         return; 
     }
 
@@ -52,25 +52,44 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function caricaDatiDalCloud() {
+    if (!idTorneoCloud) return; // Assicurati che idTorneoCloud sia impostato
     try {
-        const risp = await fetch(`${BUCKET_URL}${idTorneoCloud}`);
+        // Usa direttamente BUCKET_URL (che contiene già l'ID)
+        const risp = await fetch(BUCKET_URL + "?nocache=" + new Date().getTime());; 
         if (risp.ok) {
             const dati = await risp.json();
-            tabelloneInCorso = dati.tabelloneInCorso;
-            archivioSquadre = dati.archivioSquadre;
-            costruisciTabelloneGrafico();
+            if (dati && dati.tabelloneInCorso) {
+                tabelloneInCorso = dati.tabelloneInCorso;
+                archivioSquadre = dati.archivioSquadre;
+                costruisciTabelloneGrafico();
+            }
         }
-    } catch (e) { console.error("Errore download dati cloud:", e); }
+    } catch (e) { console.error("Errore download:", e); }
 }
 
 async function salvaDatiSuCloud() {
-    if (!idTorneoCloud || modoSolaLettura) return;
+    console.log("Tentativo di salvataggio. ID:", idTorneoCloud, "Modo Sola Lettura:", modoSolaLettura);
+    
+    if (!idTorneoCloud || modoSolaLettura) {
+        console.warn("Salvataggio bloccato! Verifica ID o Modalità.");
+        return;
+    }
+    
     try {
-        await fetch(`${BUCKET_URL}${idTorneoCloud}`, {
+        const risp = await fetch(BUCKET_URL, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ archivioSquadre: archivioSquadre, tabelloneInCorso: tabelloneInCorso })
         });
-    } catch (e) { console.error("Errore upload cloud:", e); }
+        
+        if (risp.ok) {
+            console.log("Dati inviati con successo!");
+        } else {
+            console.error("Errore server npoint:", await risp.text());
+        }
+    } catch (e) { 
+        console.error("Errore di connessione:", e); 
+    }
 }
 
 function mostraFormIscrizione() {
