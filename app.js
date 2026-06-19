@@ -6,6 +6,15 @@ let modoSolaLettura = false;
 
 const BUCKET_URL = "https://kvdb.io/MN99w66v9w7XmWhM6XwH6q/"; // Database Cloud condiviso gratuito
 
+
+async function verificaAdmin() {
+    const psw = prompt("Inserisci Password Admin:");
+    if (psw === "tuaPasswordSegreta") {
+        localStorage.setItem('admin_token', 'valido');
+        location.reload();
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     const parametriUrl = new URLSearchParams(window.location.search);
     idTorneoCloud = parametriUrl.get('torneo');
