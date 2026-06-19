@@ -4,7 +4,7 @@ const numeroSquadreScelte = 8;
 let idTorneoCloud = null;
 let modoSolaLettura = false;
 
-const BUCKET_URL = "https://kvdb.io/MN99w66v9w7XmWhM6XwH6q/"; // Database Cloud condiviso gratuito
+const BUCKET_URL = "https://kvdb.io/7097e224e5ffcf7ddcce/"; // Database Cloud condiviso gratuito
 
 
 async function verificaAdmin() {
