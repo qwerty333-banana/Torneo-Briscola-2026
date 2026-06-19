@@ -1,44 +1,85 @@
 let archivioSquadre = [];
 let tabelloneInCorso = {};
-let numeroSquadreScelte = 4;
+const numeroSquadreScelte = 8;
+let idTorneoCloud = null;
+let modoSolaLettura = false;
 
-document.addEventListener("DOMContentLoaded", () => {
-    const torneoSalvato = localStorage.getItem('torneo_briscola_salvato');
-    const squadreSalvate = localStorage.getItem('squadre_briscola_salvate');
+const BUCKET_URL = "https://kvdb.io/MN99w66v9w7XmWhM6XwH6q/"; // Database Cloud condiviso gratuito
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const parametriUrl = new URLSearchParams(window.location.search);
+    idTorneoCloud = parametriUrl.get('torneo');
+
+    const haPasswordAdminLocale = localStorage.getItem('torneo_gironi_salvato') && localStorage.getItem('id_torneo_attivo') === idTorneoCloud;
+
+    if (idTorneoCloud && !haPasswordAdminLocale) {
+        // MODALITÀ SPETTATORE (SOLA LETTURA)
+        modoSolaLettura = true;
+        document.body.classList.add('readonly-mode');
+        document.getElementById('testo-modalita').innerText = "Modalità Spettatore (Sola Lettura)";
+        document.getElementById('schermata-iniziale').style.display = 'none';
+        
+        await caricaDatiDalCloud();
+        setInterval(caricaDatiDalCloud, 25000); // Aggiorna da solo lo schermo degli spettatori ogni 25 secondi
+        return; 
+    }
+
+    // MODALITÀ AMMINISTRATORE
+    const torneoSalvato = localStorage.getItem('torneo_gironi_salvato');
+    const squadreSalvate = localStorage.getItem('squadre_gironi_salvate');
 
     if (torneoSalvato && squadreSalvate) {
         document.getElementById('schermata-iniziale').style.display = 'none';
         tabelloneInCorso = JSON.parse(torneoSalvato);
         archivioSquadre = JSON.parse(squadreSalvate);
-        gestisciVisibilitaColonne(tabelloneInCorso.faseIniziale);
+        if(localStorage.getItem('id_torneo_attivo')) {
+            idTorneoCloud = localStorage.getItem('id_torneo_attivo');
+            mostraBottoneCondivisionePronto();
+        }
         costruisciTabelloneGrafico();
     } else {
         document.getElementById('schermata-iniziale').style.display = 'flex';
     }
-
-    const inputFile = document.getElementById('input-file-json');
-    if (inputFile) {
-        inputFile.addEventListener('change', importaTorneoDaJSON);
-    }
 });
 
-function mostraFormIscrizione(numeroSquadre) {
-    numeroSquadreScelte = numeroSquadre;
+async function caricaDatiDalCloud() {
+    try {
+        const risp = await fetch(`${BUCKET_URL}${idTorneoCloud}`);
+        if (risp.ok) {
+            const dati = await risp.json();
+            tabelloneInCorso = dati.tabelloneInCorso;
+            archivioSquadre = dati.archivioSquadre;
+            costruisciTabelloneGrafico();
+        }
+    } catch (e) { console.error("Errore download dati cloud:", e); }
+}
+
+async function salvaDatiSuCloud() {
+    if (!idTorneoCloud || modoSolaLettura) return;
+    try {
+        await fetch(`${BUCKET_URL}${idTorneoCloud}`, {
+            method: 'POST',
+            body: JSON.stringify({ archivioSquadre: archivioSquadre, tabelloneInCorso: tabelloneInCorso })
+        });
+    } catch (e) { console.error("Errore upload cloud:", e); }
+}
+
+function mostraFormIscrizione() {
     document.getElementById('fase-scelta-squadre').style.display = 'none';
     document.getElementById('fase-inserimento-nomi').style.display = 'block';
 
     const contenitoreCampi = document.getElementById('lista-campi-squadre');
     contenitoreCampi.innerHTML = ""; 
 
-    for (let i = 1; i <= numeroSquadre; i++) {
+    for (let i = 1; i <= numeroSquadreScelte; i++) {
         const divSquadra = document.createElement('div');
         divSquadra.className = "blocco-inserimento-squadra";
         divSquadra.innerHTML = `
-            <h3>Iscrizione Squadra ${i}</h3>
-            <input type="text" id="nome-sq-${i}" placeholder="Nome della Squadra" required class="input-testo-config">
+            <h3>Squadra ${i}</h3>
+            <input type="text" id="nome-sq-${i}" placeholder="Nome Squadra / Coppia (es. I Rossi)" required class="input-testo-config">
             <div class="coppia-giocatori-inputs">
-                <input type="text" id="g-a-${i}" placeholder="Giocatore 1" required class="input-testo-config">
-                <input type="text" id="g-b-${i}" placeholder="Giocatore 2" required class="input-testo-config">
+                <input type="text" id="g-a-${i}" placeholder="Nome Giocatore 1" required class="input-testo-config">
+                <input type="text" id="g-b-${i}" placeholder="Nome Giocatore 2" required class="input-testo-config">
             </div>
         `;
         contenitoreCampi.appendChild(divSquadra);
@@ -54,97 +95,97 @@ function confermaEIniziaTorneo(event) {
         const g1 = document.getElementById(`g-a-${i}`).value;
         const g2 = document.getElementById(`g-b-${i}`).value;
 
-        archivioSquadre.push({
-            id_squadra: 100 + i,
-            nome_squadra: nomeSq,
-            giocatori: `${g1} - ${g2}`
-        });
+        archivioSquadre.push({ id_squadra: 100 + i, nome_squadra: nomeSq, giocatori: `${g1} e ${g2}` });
     }
 
     tabelloneInCorso = {
-        faseIniziale: numeroSquadreScelte,
-        sedicesimi: [],
-        ottavi: [],
-        quarti: [],
-        semifinali: [],
-        finale: []
+        faseIniziale: 8,
+        gironi: {
+            A: { squadre: [101, 102, 103, 104], partite: [] },
+            B: { squadre: [105, 106, 107, 108], partite: [] }
+        },
+        semifinali: [
+            { partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null, info: "1ª Girone A vs 2ª Girone B" },
+            { partita: 2, squadra1: null, squadra2: null, punti1: null, punti2: null, info: "1ª Girone B vs 2ª Girone A" }
+        ],
+        finale: [ { partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null } ]
     };
 
-    for (let i = 1; i <= 16; i++) tabelloneInCorso.sedicesimi.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-    for (let i = 1; i <= 8; i++) tabelloneInCorso.ottavi.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-    for (let i = 1; i <= 4; i++) tabelloneInCorso.quarti.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-    for (let i = 1; i <= 2; i++) tabelloneInCorso.semifinali.push({ partita: i, squadra1: null, squadra2: null, punti1: null, punti2: null });
-    tabelloneInCorso.finale.push({ partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null });
+    tabelloneInCorso.gironi.A.partite = [
+        { id: 1, giornata: 1, squadra1: 101, squadra2: 104, punti1: null, punti2: null }, 
+        { id: 2, giornata: 1, squadra1: 102, squadra2: 103, punti1: null, punti2: null }, 
+        { id: 3, giornata: 2, squadra1: 101, squadra2: 102, punti1: null, punti2: null }, 
+        { id: 4, giornata: 2, squadra1: 103, squadra2: 104, punti1: null, punti2: null }, 
+        { id: 5, giornata: 3, squadra1: 101, squadra2: 103, punti1: null, punti2: null }, 
+        { id: 6, giornata: 3, squadra1: 102, squadra2: 104, punti1: null, punti2: null }  
+    ];
 
-    if (numeroSquadreScelte === 32) {
-        for (let i = 0; i < 32; i += 2) {
-            let p = tabelloneInCorso.sedicesimi[Math.floor(i / 2)];
-            p.squadra1 = archivioSquadre[i].id_squadra;
-            p.squadra2 = archivioSquadre[i+1].id_squadra;
-        }
-    } 
-    else if (numeroSquadreScelte === 16) {
-        for (let i = 0; i < 16; i += 2) {
-            let p = tabelloneInCorso.ottavi[Math.floor(i / 2)];
-            p.squadra1 = archivioSquadre[i].id_squadra;
-            p.squadra2 = archivioSquadre[i+1].id_squadra;
-        }
-    } 
-    else if (numeroSquadreScelte === 8) {
-        for (let i = 0; i < 8; i += 2) {
-            let p = tabelloneInCorso.quarti[Math.floor(i / 2)];
-            p.squadra1 = archivioSquadre[i].id_squadra;
-            p.squadra2 = archivioSquadre[i+1].id_squadra;
-        }
-    } 
-    else if (numeroSquadreScelte === 4) {
-        for (let i = 0; i < 4; i += 2) {
-            let p = tabelloneInCorso.semifinali[Math.floor(i / 2)];
-            p.squadra1 = archivioSquadre[i].id_squadra;
-            p.squadra2 = archivioSquadre[i+1].id_squadra;
-        }
-    }
+    tabelloneInCorso.gironi.B.partite = [
+        { id: 1, giornata: 1, squadra1: 105, squadra2: 108, punti1: null, punti2: null }, 
+        { id: 2, giornata: 1, squadra1: 106, squadra2: 107, punti1: null, punti2: null }, 
+        { id: 3, giornata: 2, squadra1: 105, squadra2: 106, punti1: null, punti2: null }, 
+        { id: 4, giornata: 2, squadra1: 107, squadra2: 108, punti1: null, punti2: null }, 
+        { id: 5, giornata: 3, squadra1: 106, squadra2: 108, punti1: null, punti2: null }, 
+        { id: 6, giornata: 3, squadra1: 105, squadra2: 107, punti1: null, punti2: null }  
+    ];
 
     salvaDatiSuBrowser();
     document.getElementById('schermata-iniziale').style.display = 'none';
-    gestisciVisibilitaColonne(numeroSquadreScelte);
     costruisciTabelloneGrafico();
-}
-
-function gestisciVisibilitaColonne(numeroSquadre) {
-    document.getElementById('col-sedicesimi-sx').style.display = numeroSquadre === 32 ? 'flex' : 'none';
-    document.getElementById('col-sedicesimi-dx').style.display = numeroSquadre === 32 ? 'flex' : 'none';
-    document.getElementById('col-ottavi-sx').style.display = numeroSquadre >= 16 ? 'flex' : 'none';
-    document.getElementById('col-ottavi-dx').style.display = numeroSquadre >= 16 ? 'flex' : 'none';
-    document.getElementById('col-quarti-sx').style.display = numeroSquadre >= 8 ? 'flex' : 'none';
-    document.getElementById('col-quarti-dx').style.display = numeroSquadre >= 8 ? 'flex' : 'none';
-    document.getElementById('col-semifinali-sx').style.display = numeroSquadre >= 4 ? 'flex' : 'none';
-    document.getElementById('col-semifinali-dx').style.display = numeroSquadre >= 4 ? 'flex' : 'none';
 }
 
 function costruisciTabelloneGrafico() {
     const mappaSquadre = new Map(archivioSquadre.map(s => [s.id_squadra, s]));
 
-    const distribuisciFase = (nomeFase, partiteTotali) => {
-        const meta = partiteTotali.length / 2;
-        const sottomatchSx = partiteTotali.slice(0, meta);
-        const sottomatchDx = partiteTotali.slice(meta);
-        
-        renderizzaFaseHtml(`fase-${nomeFase}-sx`, sottomatchSx, mappaSquadre, nomeFase, false);
-        renderizzaFaseHtml(`fase-${nomeFase}-dx`, sottomatchDx, mappaSquadre, nomeFase, true);
-    };
+    renderizzaGironeHtml('fase-girone-A', 'A', tabelloneInCorso.gironi.A.partite, mappaSquadre);
+    renderizzaGironeHtml('fase-girone-B', 'B', tabelloneInCorso.gironi.B.partite, mappaSquadre);
 
-    if (tabelloneInCorso.faseIniziale === 32) distribuisciFase('sedicesimi', tabelloneInCorso.sedicesimi);
-    if (tabelloneInCorso.faseIniziale >= 16) distribuisciFase('ottavi', tabelloneInCorso.ottavi);
-    if (tabelloneInCorso.faseIniziale >= 8) distribuisciFase('quarti', tabelloneInCorso.quarti);
-    if (tabelloneInCorso.faseIniziale >= 4) distribuisciFase('semifinali', tabelloneInCorso.semifinali);
-    
-    renderizzaFaseHtml('fase-finale-centro', tabelloneInCorso.finale, mappaSquadre, 'finale', false);
+    aggiornaClassifica('A', mappaSquadre);
+    aggiornaClassifica('B', mappaSquadre);
+
+    if (!modoSolaLettura) controllaQualificateSemifinali();
+
+    renderizzaFaseEliminazioneHtml('fase-semifinali', tabelloneInCorso.semifinali, mappaSquadre, 'semifinali');
+    renderizzaFaseEliminazioneHtml('fase-finale', tabelloneInCorso.finale, mappaSquadre, 'finale');
 
     aggiornaCampioneGrafico(mappaSquadre);
 }
 
-function renderizzaFaseHtml(idContenitore, partite, mappaSquadre, nomeFaseOriginale, specchiato) {
+function renderizzaGironeHtml(idContenitore, lettragirone, partite, mappaSquadre) {
+    const contenitore = document.getElementById(idContenitore);
+    if (!contenitore) return;
+    contenitore.innerHTML = "";
+    let giornataCorrente = 0;
+
+    partite.forEach(p => {
+        if (p.giornata !== giornataCorrente) {
+            giornataCorrente = p.giornata;
+            const t = document.createElement('div');
+            t.className = "giornata-titolo";
+            t.innerText = `Giornata ${giornataCorrente}`;
+            contenitore.appendChild(t);
+        }
+        const sq1 = mappaSquadre.get(p.squadra1);
+        const sq2 = mappaSquadre.get(p.squadra2);
+        const disAbilitato = modoSolaLettura ? 'disabled' : '';
+
+        const blocco = document.createElement('div');
+        blocco.className = 'blocco-partita-grafica';
+        blocco.innerHTML = `
+            <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti1 > p.punti2 ? 'vincitore' : ''}">
+                <span class="team-nome" title="Giocatori: ${sq1.giocatori}">${sq1.nome_squadra}</span>
+                <input type="number" class="input-punti" ${disAbilitato} value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioGirone('${lettragirone}', ${p.id}, 1, this.value)">
+            </div>
+            <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti2 > p.punti1 ? 'vincitore' : ''}">
+                <span class="team-nome" title="Giocatori: ${sq2.giocatori}">${sq2.nome_squadra}</span>
+                <input type="number" class="input-punti" ${disAbilitato} value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioGirone('${lettragirone}', ${p.id}, 2, this.value)">
+            </div>
+        `;
+        contenitore.appendChild(blocco);
+    });
+}
+
+function renderizzaFaseEliminazioneHtml(idContenitore, partite, mappaSquadre, nomeFase) {
     const contenitore = document.getElementById(idContenitore);
     if (!contenitore) return;
     contenitore.innerHTML = "";
@@ -152,86 +193,136 @@ function renderizzaFaseHtml(idContenitore, partite, mappaSquadre, nomeFaseOrigin
     partite.forEach(p => {
         const sq1 = mappaSquadre.get(p.squadra1) || { nome_squadra: "Da Definire", giocatori: "" };
         const sq2 = mappaSquadre.get(p.squadra2) || { nome_squadra: "Da Definire", giocatori: "" };
-        
+        const infoSub = p.info ? `<div class="etichetta-match">${p.info}</div>` : `<div class="etichetta-match">Finalissima</div>`;
+        const disAbilitato = modoSolaLettura ? 'disabled' : '';
+
         const blocco = document.createElement('div');
-        blocco.className = `blocco-partita-grafica ${specchiato ? 'partita-specchiata' : ''}`;
+        blocco.className = 'blocco-partita-grafica';
         blocco.innerHTML = `
-            <div class="etichetta-match">Match ${p.partita}</div>
+            ${infoSub}
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti1 > p.punti2 ? 'vincitore' : ''}">
                 <span class="team-nome" title="${sq1.giocatori}">${sq1.nome_squadra}</span>
-                <input type="number" class="input-punti" value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFaseOriginale}', ${p.partita}, 1, this.value)">
+                <input type="number" class="input-punti" ${disAbilitato} value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioEliminazione('${nomeFase}', ${p.partita}, 1, this.value)">
             </div>
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti2 > p.punti1 ? 'vincitore' : ''}">
                 <span class="team-nome" title="${sq2.giocatori}">${sq2.nome_squadra}</span>
-                <input type="number" class="input-punti" value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioIncontro('${nomeFaseOriginale}', ${p.partita}, 2, this.value)">
+                <input type="number" class="input-punti" ${disAbilitato} value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioEliminazione('${nomeFase}', ${p.partita}, 2, this.value)">
             </div>
         `;
         contenitore.appendChild(blocco);
     });
 }
 
-function aggiornaPunteggioIncontro(fase, numeroPartita, numeroSquadra, valore) {
+function aggiornaPunteggioGirone(lettragirone, idPartita, numeroSquadra, valore) {
     let valoreNumerico = valore === "" ? null : parseInt(valore);
-    
-    if (valoreNumerico !== null && (valoreNumerico < 0 || valoreNumerico > 4)) {
-        valoreNumerico = null; 
-    }
+    const partita = tabelloneInCorso.gironi[lettragirone].partite.find(p => p.id === idPartita);
+    if (!partita) return;
 
+    if (numeroSquadra === 1) partita.punti1 = valoreNumerico;
+    else partita.punti2 = valoreNumerico;
+
+    salvaDatiSuBrowser();
+    salvaDatiSuCloud();
+    costruisciTabelloneGrafico();
+}
+
+function aggiornaPunteggioEliminazione(fase, numeroPartita, numeroSquadra, valore) {
+    let valoreNumerico = valore === "" ? null : parseInt(valore);
     const incontro = tabelloneInCorso[fase].find(p => p.partita === numeroPartita);
     if (!incontro) return;
-    
+
     if (numeroSquadra === 1) incontro.punti1 = valoreNumerico;
     else incontro.punti2 = valoreNumerico;
 
     let idVincente = null;
-    if (incontro.punti1 === 4) {
-        idVincente = incontro.squadra1;
-    } else if (incontro.punti2 === 4) {
-        idVincente = incontro.squadra2;
+    if (incontro.punti1 === 4) idVincente = incontro.squadra1;
+    else if (incontro.punti2 === 4) idVincente = incontro.squadra2;
+
+    if (fase === 'semifinali') {
+        const indexFinaleSlot = (numeroPartita === 1) ? 'squadra1' : 'squadra2';
+        if (idVincente === null) {
+            tabelloneInCorso.finale[0][indexFinaleSlot] = null;
+            tabelloneInCorso.finale[0].punti1 = null;
+            tabelloneInCorso.finale[0].punti2 = null;
+        } else { tabelloneInCorso.finale[0][indexFinaleSlot] = idVincente; }
     }
 
-    applicaProgressioneOReset(fase, numeroPartita, idVincente);
     salvaDatiSuBrowser();
+    salvaDatiSuCloud();
     costruisciTabelloneGrafico();
 }
 
-function applicaProgressioneOReset(faseAttuale, numeroPartita, idVincente) {
-    let faseSuccessiva = null;
-    if (faseAttuale === 'sedicesimi') faseSuccessiva = 'ottavi';
-    else if (faseAttuale === 'ottavi') faseSuccessiva = 'quarti';
-    else if (faseAttuale === 'quarti') faseSuccessiva = 'semifinali';
-    else if (faseAttuale === 'semifinali') faseSuccessiva = 'finale';
+function calcolaClassificaDati(lettragirone) {
+    const girone = tabelloneInCorso.gironi[lettragirone];
+    const classifica = {};
 
-    if (faseSuccessiva) {
-        const prossimoIncontroIndice = Math.floor((numeroPartita - 1) / 2);
-        const slotSquadra = (numeroPartita - 1) % 2 === 0 ? 'squadra1' : 'squadra2';
-        
-        const prossimoIncontro = tabelloneInCorso[faseSuccessiva][prossimoIncontroIndice];
-        if (!prossimoIncontro) return;
+    girone.squadre.forEach(id => { classifica[id] = { id: id, punti: 0, vittorie: 0, matchVinti: 0 }; });
 
-        const vecchioInviato = prossimoIncontro[slotSquadra];
-        
-        if (idVincente === null) {
-            prossimoIncontro[slotSquadra] = null;
-            if (vecchioInviato !== null) {
-                prossimoIncontro.punti1 = null;
-                prossimoIncontro.punti2 = null;
-                applicaProgressioneOReset(faseSuccessiva, prossimoIncontroIndice + 1, null);
-            }
-        } else {
-            prossimoIncontro[slotSquadra] = idVincente;
+    girone.partite.forEach(p => {
+        if (p.punti1 !== null && p.punti2 !== null) {
+            classifica[p.squadra1].matchVinti += p.punti1;
+            classifica[p.squadra2].matchVinti += p.punti2;
+
+            if (p.punti1 === 4) { classifica[p.squadra1].punti += 2; classifica[p.squadra1].vittorie += 1; }
+            else if (p.punti2 === 4) { classifica[p.squadra2].punti += 2; classifica[p.squadra2].vittorie += 1; }
         }
+    });
+
+    return Object.values(classifica).sort((a, b) => {
+        if (b.punti !== a.punti) return b.punti - a.punti;
+        return b.matchVinti - a.matchVinti;
+    });
+}
+
+function aggiornaClassifica(lettragirone, mappaSquadre) {
+    const listaOrdinata = calcolaClassificaDati(lettragirone);
+    const containerCorpo = document.getElementById(`corpo-classifica-${lettragirone}`);
+    if (!containerCorpo) return;
+
+    containerCorpo.innerHTML = "";
+    listaOrdinata.forEach((pos, index) => {
+        const sq = mappaSquadre.get(pos.id);
+        const tr = document.createElement('tr');
+        if(index < 2) tr.className = "riga-qualificata";
+        tr.innerHTML = `
+            <td>${index + 1}°</td>
+            <td class="classifica-nome" title="Coppia: ${sq.giocatori}">${sq.nome_squadra}</td>
+            <td><b>${pos.punti}</b></td>
+            <td>${pos.vittorie}</td>
+            <td>${pos.matchVinti}</td>
+        `;
+        containerCorpo.appendChild(tr);
+    });
+}
+
+function controllaQualificateSemifinali() {
+    const gironeA = tabelloneInCorso.gironi.A.partite;
+    const gironeB = tabelloneInCorso.gironi.B.partite;
+    
+    const gironeACompletato = gironeA.every(p => p.punti1 === 4 || p.punti2 === 4);
+    const gironeBCompletato = gironeB.every(p => p.punti1 === 4 || p.punti2 === 4);
+
+    if (gironeACompletato && gironeBCompletato) {
+        const ordA = calcolaClassificaDati('A');
+        const ordB = calcolaClassificaDati('B');
+
+        tabelloneInCorso.semifinali[0].squadra1 = ordA[0].id;
+        tabelloneInCorso.semifinali[0].squadra2 = ordB[1].id;
+        tabelloneInCorso.semifinali[1].squadra1 = ordB[0].id;
+        tabelloneInCorso.semifinali[1].squadra2 = ordA[1].id;
+    } else {
+        tabelloneInCorso.semifinali[0].squadra1 = null; tabelloneInCorso.semifinali[0].squadra2 = null;
+        tabelloneInCorso.semifinali[1].squadra1 = null; tabelloneInCorso.semifinali[1].squadra2 = null;
+        tabelloneInCorso.finale[0].squadra1 = null; tabelloneInCorso.finale[0].squadra2 = null;
     }
 }
 
 let coriandoliGiaLanciati = false;
-
 function aggiornaCampioneGrafico(mappaSquadre) {
     const f = tabelloneInCorso.finale;
     const container = document.getElementById('zona-vincitore');
     const modale = document.getElementById('modale-vincitore');
     const nomeSquadraCampione = document.getElementById('nome-squadra-campione');
-    
     if (!container) return;
 
     if (f && f[0] && (f[0].punti1 === 4 || f[0].punti2 === 4)) {
@@ -239,132 +330,58 @@ function aggiornaCampioneGrafico(mappaSquadre) {
         const vincitore = mappaSquadre.get(idVincente);
         
         if (vincitore) {
-            // Aggiorna il testo e la visualizzazione del box inferiore elastico
-            container.innerHTML = `
-                <div style="font-size: 0.9rem; color: #aaa;">🏆 CAMPIONI 🏆</div>
-                <div class="nome-campione">${vincitore.nome_squadra}</div>
-            `;
+            container.innerHTML = `<div style="font-size: 0.85rem; color: #888;">🏆 CAMPIONE BRISCOLA 🏆</div><div class="nome-campione">${vincitore.nome_squadra}</div>`;
             container.classList.add('attivo');
-
-            // Imposta il nome della squadra nella finestra centrale pop-up
-            if (nomeSquadraCampione) {
-                nomeSquadraCampione.textContent = vincitore.nome_squadra;
-            }
+            if (nomeSquadraCampione) nomeSquadraCampione.textContent = vincitore.nome_squadra;
             
-            // Lancia i coriandoli ed apre la modale solo al momento della proclamazione vera e propria
             if (!coriandoliGiaLanciati) {
                 coriandoliGiaLanciati = true; 
-                
-                if (modale) {
-                    modale.classList.add('mostra');
-                }
-
-                // --- EFFETTO CELEBRAZIONE AD ESPLOSIONI MULTIPLE ---
-                var durata = 3 * 1000; // 3 secondi
-                var fine = Date.now() + durata;
-
-                (function fotogramma() {
-                    // Esplosione da sinistra
-                    confetti({
-                        particleCount: 4,
-                        angle: 60,
-                        spread: 55,
-                        origin: { x: 0, y: 0.7 }
-                    });
-                    // Esplosione da destra
-                    confetti({
-                        particleCount: 4,
-                        angle: 120,
-                        spread: 55,
-                        origin: { x: 1, y: 0.7 }
-                    });
-
-                    if (Date.now() < fine) {
-                        requestAnimationFrame(fotogramma);
-                    }
+                if (modale) modale.classList.add('mostra');
+                var end = Date.now() + 3000;
+                (function frame() {
+                    confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+                    confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+                    if (Date.now() < end) requestAnimationFrame(frame);
                 }());
             }
         }
     } else {
-        // Se il punteggio viene rimosso, resetta lo stato ed elimina le classi attive
-        container.innerHTML = "";
-        container.classList.remove('attivo');
-        if (modale) {
-            modale.classList.remove('mostra');
-        }
-        coriandoliGiaLanciati = false;
+        container.innerHTML = ""; container.classList.remove('attivo');
+        if (modale) modale.classList.remove('mostra'); coriandoliGiaLanciati = false;
     }
 }
 
-function chiudiModaleVittoria() {
-    const modale = document.getElementById('modale-vincitore');
-    if (modale) {
-        modale.classList.remove('mostra');
-    }
-}
+function chiudiModaleVittoria() { document.getElementById('modale-vincitore').classList.remove('mostra'); }
 
 function salvaDatiSuBrowser() {
-    localStorage.setItem('torneo_briscola_salvato', JSON.stringify(tabelloneInCorso));
-    localStorage.setItem('squadre_briscola_salvate', JSON.stringify(archivioSquadre));
+    if (modoSolaLettura) return;
+    localStorage.setItem('torneo_gironi_salvato', JSON.stringify(tabelloneInCorso));
+    localStorage.setItem('squadre_gironi_salvate', JSON.stringify(archivioSquadre));
+    if(idTorneoCloud) localStorage.setItem('id_torneo_attivo', idTorneoCloud);
 }
 
-function cancellaTorneoEsistente() {
-    localStorage.clear();
-    location.reload();
+function cancellaTorneoEsistente() { localStorage.clear(); window.location.href = window.location.href.split('?')[0]; }
+
+async function generaLinkFissoSpettatori() {
+    if (!tabelloneInCorso.gironi) { alert("Inizia prima il torneo!"); return; }
+    if (!idTorneoCloud) {
+        idTorneoCloud = "gironi_" + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('id_torneo_attivo', idTorneoCloud);
+    }
+    await salvaDatiSuCloud();
+    const linkFinale = `${window.location.href.split('?')[0]}?torneo=${idTorneoCloud}`;
+    navigator.clipboard.writeText(linkFinale).then(() => {
+        alert("Link Spettatori Copiato! Mandalo su WhatsApp una sola volta. Aggiornerà le classifiche da solo!");
+        mostraBottoneCondivisionePronto();
+    }).catch(() => { prompt("Copia manualmente il link:", linkFinale); });
+}
+
+function mostraBottoneCondivisionePronto() {
+    const btn = document.getElementById('btn-condividi-cloud');
+    if(btn) { btn.innerText = "🔗 Copia Link Spettatori (Pronto)"; btn.style.borderColor = "#00ffcc"; btn.style.color = "#00ffcc"; }
 }
 
 function esportaTorneoInJSON() {
-    if (!tabelloneInCorso.faseIniziale) {
-        alert("Nessun torneo attivo da esportare!");
-        return;
-    }
-
-    const datiDatiTorneo = {
-        archivioSquadre: archivioSquadre,
-        tabelloneInCorso: tabelloneInCorso
-    };
-
-    const stringaJson = JSON.stringify(datiDatiTorneo, null, 2);
-    const blob = new Blob([stringaJson], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const linkDownload = document.createElement("a");
-    linkDownload.href = url;
-    linkDownload.download = `torneo_briscola_${tabelloneInCorso.faseIniziale}_squadre.json`;
-    document.body.appendChild(linkDownload);
-    linkDownload.click();
-    
-    document.body.removeChild(linkDownload);
-    URL.revokeObjectURL(url);
-}
-
-function importaTorneoDaJSON(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const lettoreFile = new FileReader();
-    lettoreFile.onload = function(e) {
-        try {
-            const datiImportati = JSON.parse(e.target.result);
-
-            if (datiImportati.archivioSquadre && datiImportati.tabelloneInCorso) {
-                archivioSquadre = datiImportati.archivioSquadre;
-                tabelloneInCorso = datiImportati.tabelloneInCorso;
-
-                salvaDatiSuBrowser();
-
-                document.getElementById('schermata-iniziale').style.display = 'none';
-                gestisciVisibilitaColonne(tabelloneInCorso.faseIniziale);
-                costruisciTabelloneGrafico();
-                
-                alert("Torneo importato con successo!");
-            } else {
-                alert("Il file caricato non è nel formato corretto.");
-            }
-        } catch (errore) {
-            alert("Errore nella lettura del file JSON.");
-            console.error(errore);
-        }
-    };
-    lettoreFile.readAsText(file);
+    const blob = new Blob([JSON.stringify({ archivioSquadre, tabelloneInCorso }, null, 2)], { type: "application/json" });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `torneo_gironi.json`; link.click();
 }
