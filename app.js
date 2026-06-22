@@ -19,21 +19,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const parametriUrl = new URLSearchParams(window.location.search);
     idTorneoCloud = parametriUrl.get('torneo');
 
-    const haPasswordAdminLocale = localStorage.getItem('torneo_gironi_salvato') && localStorage.getItem('id_torneo_attivo') === idTorneoCloud;
-
-    if (idTorneoCloud && !haPasswordAdminLocale) {
-        // MODALITÀ SPETTATORE (SOLA LETTURA)
-        modoSolaLettura = true;
-        document.body.classList.add('readonly-mode');
-        document.getElementById('testo-modalita').innerText = "Modalità Spettatore (Sola Lettura)";
-        document.getElementById('schermata-iniziale').style.display = 'none';
-        
+    // 1. Se c'è un ID torneo, scarichiamo sempre i dati dal cloud
+    if (idTorneoCloud) {
         await caricaDatiDalCloud();
-        setInterval(caricaDatiDalCloud, 5000); // Aggiorna da solo lo schermo degli spettatori ogni 25 secondi
-        return; 
+        // Sincronizzazione automatica ogni 5 secondi per entrambi
+        setInterval(caricaDatiDalCloud, 5000); 
     }
 
-    // MODALITÀ AMMINISTRATORE
+    // 2. Carichiamo i dati locali (se esistono)
     const torneoSalvato = localStorage.getItem('torneo_gironi_salvato');
     const squadreSalvate = localStorage.getItem('squadre_gironi_salvate');
 
@@ -41,10 +34,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('schermata-iniziale').style.display = 'none';
         tabelloneInCorso = JSON.parse(torneoSalvato);
         archivioSquadre = JSON.parse(squadreSalvate);
-        if(localStorage.getItem('id_torneo_attivo')) {
-            idTorneoCloud = localStorage.getItem('id_torneo_attivo');
-            mostraBottoneCondivisionePronto();
-        }
         costruisciTabelloneGrafico();
     } else {
         document.getElementById('schermata-iniziale').style.display = 'flex';
@@ -68,10 +57,9 @@ async function caricaDatiDalCloud() {
 }
 
 async function salvaDatiSuCloud() {
-    console.log("Tentativo di salvataggio. ID:", idTorneoCloud, "Modo Sola Lettura:", modoSolaLettura);
-    
-    if (!idTorneoCloud || modoSolaLettura) {
-        console.warn("Salvataggio bloccato! Verifica ID o Modalità.");
+    // Rimosso il controllo "modoSolaLettura" che impediva il salvataggio
+    if (!idTorneoCloud) {
+        console.warn("ID Torneo mancante, salvataggio non possibile.");
         return;
     }
     
@@ -83,12 +71,10 @@ async function salvaDatiSuCloud() {
         });
         
         if (risp.ok) {
-            console.log("Dati inviati con successo!");
-        } else {
-            console.error("Errore server npoint:", await risp.text());
+            console.log("Dati sincronizzati con il cloud!");
         }
     } catch (e) { 
-        console.error("Errore di connessione:", e); 
+        console.error("Errore di sincronizzazione:", e); 
     }
 }
 
