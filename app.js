@@ -68,27 +68,21 @@ async function caricaDatiDalCloud() {
 }
 
 async function salvaDatiSuCloud() {
-    console.log("Tentativo di salvataggio. ID:", idTorneoCloud, "Modo Sola Lettura:", modoSolaLettura);
-    
-    if (!idTorneoCloud || modoSolaLettura) {
-        console.warn("Salvataggio bloccato! Verifica ID o Modalità.");
-        return;
-    }
+    if (!idTorneoCloud) return; 
     
     try {
-        const risp = await fetch(BUCKET_URL, {
+        await fetch(BUCKET_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ archivioSquadre: archivioSquadre, tabelloneInCorso: tabelloneInCorso })
+            body: JSON.stringify({ 
+                archivioSquadre: archivioSquadre, 
+                tabelloneInCorso: tabelloneInCorso 
+            })
         });
-        
-        if (risp.ok) {
-            console.log("Dati inviati con successo!");
-        } else {
-            console.error("Errore server npoint:", await risp.text());
-        }
+        // Salva anche in locale come backup, ma il cloud è la priorità
+        localStorage.setItem('torneo_gironi_salvato', JSON.stringify(tabelloneInCorso));
     } catch (e) { 
-        console.error("Errore di connessione:", e); 
+        console.error("Errore sync cloud:", e); 
     }
 }
 
@@ -114,7 +108,7 @@ function mostraFormIscrizione() {
     }
 }
 
-function confermaEIniziaTorneo(event) {
+async function confermaEIniziaTorneo(event) {
     event.preventDefault(); 
     archivioSquadre = [];
 
@@ -139,25 +133,25 @@ function confermaEIniziaTorneo(event) {
         finale: [ { partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null } ]
     };
 
-    tabelloneInCorso.gironi.A.partite = [
-        { id: 1, giornata: 1, squadra1: 101, squadra2: 104, punti1: null, punti2: null }, 
-        { id: 2, giornata: 1, squadra1: 102, squadra2: 103, punti1: null, punti2: null }, 
-        { id: 3, giornata: 2, squadra1: 101, squadra2: 102, punti1: null, punti2: null }, 
-        { id: 4, giornata: 2, squadra1: 103, squadra2: 104, punti1: null, punti2: null }, 
-        { id: 5, giornata: 3, squadra1: 101, squadra2: 103, punti1: null, punti2: null }, 
-        { id: 6, giornata: 3, squadra1: 102, squadra2: 104, punti1: null, punti2: null }  
-    ];
+    // ... (lascia intatto il codice che popola tabelloneInCorso.gironi.A e B) ...
+    tabelloneInCorso.gironi.A.partite = [ /* ... */ ];
+    tabelloneInCorso.gironi.B.partite = [ /* ... */ ];
 
-    tabelloneInCorso.gironi.B.partite = [
-        { id: 1, giornata: 1, squadra1: 105, squadra2: 108, punti1: null, punti2: null }, 
-        { id: 2, giornata: 1, squadra1: 106, squadra2: 107, punti1: null, punti2: null }, 
-        { id: 3, giornata: 2, squadra1: 105, squadra2: 106, punti1: null, punti2: null }, 
-        { id: 4, giornata: 2, squadra1: 107, squadra2: 108, punti1: null, punti2: null }, 
-        { id: 5, giornata: 3, squadra1: 106, squadra2: 108, punti1: null, punti2: null }, 
-        { id: 6, giornata: 3, squadra1: 105, squadra2: 107, punti1: null, punti2: null }  
-    ];
+    // --- NUOVA LOGICA DI SINCRONIZZAZIONE ---
+    
+    // 1. Assegna un ID univoco al torneo se non esiste già
+    if (!idTorneoCloud) {
+        idTorneoCloud = "briscola_2026_ufficiale"; // ID fisso così il QR code funziona sempre
+        localStorage.setItem('id_torneo_attivo', idTorneoCloud);
+    }
 
+    // 2. Salva in locale
     salvaDatiSuBrowser();
+
+    // 3. FORZA L'INVIO AL CLOUD (Attendi che finisca col await)
+    await salvaDatiSuCloud();
+
+    // 4. Aggiorna l'interfaccia
     document.getElementById('schermata-iniziale').style.display = 'none';
     costruisciTabelloneGrafico();
 }
@@ -249,8 +243,8 @@ function aggiornaPunteggioGirone(lettragirone, idPartita, numeroSquadra, valore)
     if (numeroSquadra === 1) partita.punti1 = valoreNumerico;
     else partita.punti2 = valoreNumerico;
 
-    salvaDatiSuBrowser();
-    salvaDatiSuCloud();
+    // Salvataggio immediato
+    salvaDatiSuCloud(); 
     costruisciTabelloneGrafico();
 }
 
@@ -259,9 +253,11 @@ function aggiornaPunteggioEliminazione(fase, numeroPartita, numeroSquadra, valor
     const incontro = tabelloneInCorso[fase].find(p => p.partita === numeroPartita);
     if (!incontro) return;
 
+    // Aggiorna il dato in memoria
     if (numeroSquadra === 1) incontro.punti1 = valoreNumerico;
     else incontro.punti2 = valoreNumerico;
 
+    // Logica per passaggio turno (se il punteggio è 4)
     let idVincente = null;
     if (incontro.punti1 === 4) idVincente = incontro.squadra1;
     else if (incontro.punti2 === 4) idVincente = incontro.squadra2;
@@ -272,11 +268,20 @@ function aggiornaPunteggioEliminazione(fase, numeroPartita, numeroSquadra, valor
             tabelloneInCorso.finale[0][indexFinaleSlot] = null;
             tabelloneInCorso.finale[0].punti1 = null;
             tabelloneInCorso.finale[0].punti2 = null;
-        } else { tabelloneInCorso.finale[0][indexFinaleSlot] = idVincente; }
+        } else { 
+            tabelloneInCorso.finale[0][indexFinaleSlot] = idVincente; 
+        }
     }
 
+    // --- PARTE CRITICA: SALVATAGGIO ---
+    // 1. Aggiorna il browser (locale)
     salvaDatiSuBrowser();
+    
+    // 2. Forza l'invio al Cloud (npoint)
+    // Non aggiungere condizioni: deve partire sempre!
     salvaDatiSuCloud();
+    
+    // 3. Ridisegna la pagina
     costruisciTabelloneGrafico();
 }
 
