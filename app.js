@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('schermata-iniziale').style.display = 'none';
         
         await caricaDatiDalCloud();
-        setInterval(caricaDatiDalCloud, 5000); // Aggiorna da solo lo schermo degli spettatori ogni 25 secondi
+        setInterval(caricaDatiDalCloud, 5000); // Aggiorna lo schermo degli spettatori ogni 5 secondi
         return; 
     }
 
@@ -52,10 +52,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function caricaDatiDalCloud() {
-    if (!idTorneoCloud) return; // Assicurati che idTorneoCloud sia impostato
+    if (!idTorneoCloud) return; 
     try {
-        // Usa direttamente BUCKET_URL (che contiene già l'ID)
-        const risp = await fetch(BUCKET_URL + "?nocache=" + new Date().getTime());; 
+        const risp = await fetch(BUCKET_URL + "?nocache=" + new Date().getTime()); 
         if (risp.ok) {
             const dati = await risp.json();
             if (dati && dati.tabelloneInCorso) {
@@ -79,7 +78,6 @@ async function salvaDatiSuCloud() {
                 tabelloneInCorso: tabelloneInCorso 
             })
         });
-        // Salva anche in locale come backup, ma il cloud è la priorità
         localStorage.setItem('torneo_gironi_salvato', JSON.stringify(tabelloneInCorso));
     } catch (e) { 
         console.error("Errore sync cloud:", e); 
@@ -108,6 +106,19 @@ function mostraFormIscrizione() {
     }
 }
 
+// Genera un calendario a Sola Andata perfetto (3 giornate, 6 partite totali per girone)
+function generaCalendarioGirone(squadre, idPartenza) {
+    let id = idPartenza;
+    return [
+        { id: id++, giornata: 1, squadra1: squadre[0], squadra2: squadre[1], punti1: null, punti2: null },
+        { id: id++, giornata: 1, squadra1: squadre[2], squadra2: squadre[3], punti1: null, punti2: null },
+        { id: id++, giornata: 2, squadra1: squadre[0], squadra2: squadre[2], punti1: null, punti2: null },
+        { id: id++, giornata: 2, squadra1: squadre[1], squadra2: squadre[3], punti1: null, punti2: null },
+        { id: id++, giornata: 3, squadra1: squadre[0], squadra2: squadre[3], punti1: null, punti2: null },
+        { id: id++, giornata: 3, squadra1: squadre[1], squadra2: squadre[2], punti1: null, punti2: null }
+    ];
+}
+
 async function confermaEIniziaTorneo(event) {
     event.preventDefault(); 
     archivioSquadre = [];
@@ -133,25 +144,40 @@ async function confermaEIniziaTorneo(event) {
         finale: [ { partita: 1, squadra1: null, squadra2: null, punti1: null, punti2: null } ]
     };
 
-    // ... (lascia intatto il codice che popola tabelloneInCorso.gironi.A e B) ...
-    tabelloneInCorso.gironi.A.partite = [ /* ... */ ];
-    tabelloneInCorso.gironi.B.partite = [ /* ... */ ];
+    // Popolamento corretto del calendario senza blocchi
+    tabelloneInCorso.gironi.A.partite = [
+        // Prima giornata: 1vs4, 2vs3
+        { id: 1, giornata: 1, squadra1: 101, squadra2: 104, punti1: null, punti2: null },
+        { id: 2, giornata: 1, squadra1: 102, squadra2: 103, punti1: null, punti2: null },
+        // Seconda giornata: 1vs2, 3vs4
+        { id: 3, giornata: 2, squadra1: 101, squadra2: 102, punti1: null, punti2: null },
+        { id: 4, giornata: 2, squadra1: 103, squadra2: 104, punti1: null, punti2: null },
+        // Terza giornata: 1vs3, 2vs4
+        { id: 5, giornata: 3, squadra1: 101, squadra2: 103, punti1: null, punti2: null },
+        { id: 6, giornata: 3, squadra1: 102, squadra2: 104, punti1: null, punti2: null }
+    ];
 
-    // --- NUOVA LOGICA DI SINCRONIZZAZIONE ---
-    
-    // 1. Assegna un ID univoco al torneo se non esiste già
+    tabelloneInCorso.gironi.B.partite = [
+        // Prima giornata: 5vs8, 6vs7
+        { id: 7, giornata: 1, squadra1: 105, squadra2: 108, punti1: null, punti2: null },
+        { id: 8, giornata: 1, squadra1: 106, squadra2: 107, punti1: null, punti2: null },
+        // Seconda giornata: 5vs6, 7vs8
+        { id: 9, giornata: 2, squadra1: 105, squadra2: 106, punti1: null, punti2: null },
+        { id: 10, giornata: 2, squadra1: 107, squadra2: 108, punti1: null, punti2: null },
+        // Terza giornata: 5vs7, 6vs8
+        { id: 11, giornata: 3, squadra1: 105, squadra2: 107, punti1: null, punti2: null },
+        { id: 12, giornata: 3, squadra1: 106, squadra2: 108, punti1: null, punti2: null }
+    ];
+
+
     if (!idTorneoCloud) {
-        idTorneoCloud = "briscola_2026_ufficiale"; // ID fisso così il QR code funziona sempre
+        idTorneoCloud = "briscola_2026_ufficiale"; 
         localStorage.setItem('id_torneo_attivo', idTorneoCloud);
     }
 
-    // 2. Salva in locale
     salvaDatiSuBrowser();
-
-    // 3. FORZA L'INVIO AL CLOUD (Attendi che finisca col await)
     await salvaDatiSuCloud();
 
-    // 4. Aggiorna l'interfaccia
     document.getElementById('schermata-iniziale').style.display = 'none';
     costruisciTabelloneGrafico();
 }
@@ -195,11 +221,11 @@ function renderizzaGironeHtml(idContenitore, lettragirone, partite, mappaSquadre
         blocco.className = 'blocco-partita-grafica';
         blocco.innerHTML = `
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti1 > p.punti2 ? 'vincitore' : ''}">
-                <span class="team-nome" title="Giocatori: ${sq1.giocatori}">${sq1.nome_squadra}</span>
+                <span class="team-nome" title="Giocatori: ${sq1 ? sq1.giocatori : ''}">${sq1 ? sq1.nome_squadra : 'Da Definire'}</span>
                 <input type="number" class="input-punti" ${disAbilitato} value="${p.punti1 !== null ? p.punti1 : ''}" placeholder="-" onchange="aggiornaPunteggioGirone('${lettragirone}', ${p.id}, 1, this.value)">
             </div>
             <div class="team-riga ${p.punti1 !== null && p.punti2 !== null && p.punti2 > p.punti1 ? 'vincitore' : ''}">
-                <span class="team-nome" title="Giocatori: ${sq2.giocatori}">${sq2.nome_squadra}</span>
+                <span class="team-nome" title="Giocatori: ${sq2 ? sq2.giocatori : ''}">${sq2 ? sq2.nome_squadra : 'Da Definire'}</span>
                 <input type="number" class="input-punti" ${disAbilitato} value="${p.punti2 !== null ? p.punti2 : ''}" placeholder="-" onchange="aggiornaPunteggioGirone('${lettragirone}', ${p.id}, 2, this.value)">
             </div>
         `;
@@ -243,7 +269,7 @@ function aggiornaPunteggioGirone(lettragirone, idPartita, numeroSquadra, valore)
     if (numeroSquadra === 1) partita.punti1 = valoreNumerico;
     else partita.punti2 = valoreNumerico;
 
-    // Salvataggio immediato
+    salvaDatiSuBrowser();
     salvaDatiSuCloud(); 
     costruisciTabelloneGrafico();
 }
@@ -253,14 +279,14 @@ function aggiornaPunteggioEliminazione(fase, numeroPartita, numeroSquadra, valor
     const incontro = tabelloneInCorso[fase].find(p => p.partita === numeroPartita);
     if (!incontro) return;
 
-    // Aggiorna il dato in memoria
     if (numeroSquadra === 1) incontro.punti1 = valoreNumerico;
     else incontro.punti2 = valoreNumerico;
 
-    // Logica per passaggio turno (se il punteggio è 4)
     let idVincente = null;
-    if (incontro.punti1 === 4) idVincente = incontro.squadra1;
-    else if (incontro.punti2 === 4) idVincente = incontro.squadra2;
+    if (incontro.punti1 !== null && incontro.punti2 !== null) {
+        if (incontro.punti1 > incontro.punti2) idVincente = incontro.squadra1;
+        else if (incontro.punti2 > incontro.punti1) idVincente = incontro.squadra2;
+    }
 
     if (fase === 'semifinali') {
         const indexFinaleSlot = (numeroPartita === 1) ? 'squadra1' : 'squadra2';
@@ -273,15 +299,8 @@ function aggiornaPunteggioEliminazione(fase, numeroPartita, numeroSquadra, valor
         }
     }
 
-    // --- PARTE CRITICA: SALVATAGGIO ---
-    // 1. Aggiorna il browser (locale)
     salvaDatiSuBrowser();
-    
-    // 2. Forza l'invio al Cloud (npoint)
-    // Non aggiungere condizioni: deve partire sempre!
     salvaDatiSuCloud();
-    
-    // 3. Ridisegna la pagina
     costruisciTabelloneGrafico();
 }
 
@@ -296,8 +315,13 @@ function calcolaClassificaDati(lettragirone) {
             classifica[p.squadra1].matchVinti += p.punti1;
             classifica[p.squadra2].matchVinti += p.punti2;
 
-            if (p.punti1 === 4) { classifica[p.squadra1].punti += 2; classifica[p.squadra1].vittorie += 1; }
-            else if (p.punti2 === 4) { classifica[p.squadra2].punti += 2; classifica[p.squadra2].vittorie += 1; }
+            if (p.punti1 > p.punti2) { 
+                classifica[p.squadra1].punti += 2; 
+                classifica[p.squadra1].vittorie += 1; 
+            } else if (p.punti2 > p.punti1) { 
+                classifica[p.squadra2].punti += 2; 
+                classifica[p.squadra2].vittorie += 1; 
+            }
         }
     });
 
@@ -319,7 +343,7 @@ function aggiornaClassifica(lettragirone, mappaSquadre) {
         if(index < 2) tr.className = "riga-qualificata";
         tr.innerHTML = `
             <td>${index + 1}°</td>
-            <td class="classifica-nome" title="Coppia: ${sq.giocatori}">${sq.nome_squadra}</td>
+            <td class="classifica-nome" title="Coppia: ${sq ? sq.giocatori : ''}">${sq ? sq.nome_squadra : 'Caricamento...'}</td>
             <td><b>${pos.punti}</b></td>
             <td>${pos.vittorie}</td>
             <td>${pos.matchVinti}</td>
@@ -332,8 +356,8 @@ function controllaQualificateSemifinali() {
     const gironeA = tabelloneInCorso.gironi.A.partite;
     const gironeB = tabelloneInCorso.gironi.B.partite;
     
-    const gironeACompletato = gironeA.every(p => p.punti1 === 4 || p.punti2 === 4);
-    const gironeBCompletato = gironeB.every(p => p.punti1 === 4 || p.punti2 === 4);
+    const gironeACompletato = gironeA.every(p => p.punti1 !== null && p.punti2 !== null);
+    const gironeBCompletato = gironeB.every(p => p.punti1 !== null && p.punti2 !== null);
 
     if (gironeACompletato && gironeBCompletato) {
         const ordA = calcolaClassificaDati('A');
@@ -358,30 +382,34 @@ function aggiornaCampioneGrafico(mappaSquadre) {
     const nomeSquadraCampione = document.getElementById('nome-squadra-campione');
     if (!container) return;
 
-    if (f && f[0] && (f[0].punti1 === 4 || f[0].punti2 === 4)) {
-        const idVincente = f[0].punti1 === 4 ? f[0].squadra1 : f[0].squadra2;
-        const vincitore = mappaSquadre.get(idVincente);
-        
-        if (vincitore) {
-            container.innerHTML = `<div style="font-size: 0.85rem; color: #888;">🏆 CAMPIONE BRISCOLA 🏆</div><div class="nome-campione">${vincitore.nome_squadra}</div>`;
-            container.classList.add('attivo');
-            if (nomeSquadraCampione) nomeSquadraCampione.textContent = vincitore.nome_squadra;
-            
-            if (!coriandoliGiaLanciati) {
-                coriandoliGiaLanciati = true; 
-                if (modale) modale.classList.add('mostra');
-                var end = Date.now() + 3000;
-                (function frame() {
-                    confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
-                    confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
-                    if (Date.now() < end) requestAnimationFrame(frame);
-                }());
+    if (f && f[0] && f[0].punti1 !== null && f[0].punti2 !== null) {
+        let idVincente = null;
+        if (f[0].punti1 > f[0].punti2) idVincente = f[0].squadra1;
+        else if (f[0].punti2 > f[0].punti1) idVincente = f[0].squadra2;
+
+        if (idVincente) {
+            const vincitore = mappaSquadre.get(idVincente);
+            if (vincitore) {
+                container.innerHTML = `<div style="font-size: 0.85rem; color: #888;">🏆 CAMPIONE BRISCOLA 🏆</div><div class="nome-campione">${vincitore.nome_squadra}</div>`;
+                container.classList.add('attivo');
+                if (nomeSquadraCampione) nomeSquadraCampione.textContent = vincitore.nome_squadra;
+                
+                if (!coriandoliGiaLanciati) {
+                    coriandoliGiaLanciati = true; 
+                    if (modale) modale.classList.add('mostra');
+                    var end = Date.now() + 3000;
+                    (function frame() {
+                        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } });
+                        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } });
+                        if (Date.now() < end) requestAnimationFrame(frame);
+                    }());
+                }
+                return;
             }
         }
-    } else {
-        container.innerHTML = ""; container.classList.remove('attivo');
-        if (modale) modale.classList.remove('mostra'); coriandoliGiaLanciati = false;
     }
+    container.innerHTML = ""; container.classList.remove('attivo');
+    if (modale) modale.classList.remove('mostra'); coriandoliGiaLanciati = false;
 }
 
 function chiudiModaleVittoria() { document.getElementById('modale-vincitore').classList.remove('mostra'); }
@@ -393,7 +421,31 @@ function salvaDatiSuBrowser() {
     if(idTorneoCloud) localStorage.setItem('id_torneo_attivo', idTorneoCloud);
 }
 
-function cancellaTorneoEsistente() { localStorage.clear(); window.location.href = window.location.href.split('?')[0]; }
+async function cancellaTorneoEsistente() {
+    const conferma = confirm("Sei sicuro di voler cancellare tutto e ricominciare da capo?");
+    
+    if (conferma) {
+        // 1. Pulizia chirurgica della memoria locale (senza usare localStorage.clear() che cancella troppo)
+        localStorage.removeItem('torneo_gironi_salvato');
+        localStorage.removeItem('squadre_gironi_salvate');
+        localStorage.removeItem('id_torneo_attivo');
+        localStorage.removeItem('admin_token');
+
+        // 2. Pulizia immediata del Cloud (così chi ha il link QR Code vedrà che il torneo è in attesa)
+        try {
+            await fetch(BUCKET_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tabelloneInCorso: null, archivioSquadre: null })
+            });
+        } catch (e) { 
+            console.error("Errore pulizia cloud:", e); 
+        }
+
+        // 3. Ricarica la pagina istantaneamente alla schermata di configurazione
+        window.location.href = window.location.href.split('?')[0];
+    }
+}
 
 async function generaLinkFissoSpettatori() {
     if (!tabelloneInCorso.gironi) { alert("Inizia prima il torneo!"); return; }
